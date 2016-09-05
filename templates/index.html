@@ -1,0 +1,143 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chart</title>
+    <script src="/static/jQuery.min.js"></script>
+    <script src="/static/Chart.min.js"></script>
+    <script>
+        var log = function () {
+            console.log(arguments);
+        };
+
+        var chart = {};
+
+        chart.post = function (url, form, success, error) {
+            var data = JSON.stringify(form);
+            var request = {
+                url: url,
+                type: 'post',
+                contentType: 'application/json',
+                data: data,
+                success: function (r) {
+                    log('post success', url, r);
+                    success(r);
+                },
+                error: function (err) {
+                    log('post err', url, err);
+                    error(err);
+                }
+            };
+            $.ajax(request);
+        };
+
+        chart.infoParse = function (datasets) {
+            var timeNow = [];
+            var dat = [];
+            log('datasets:', datasets);
+            for (var i = 0; i < 5; i++) {
+                var dataset = datasets[i];
+                log('set', dataset.datalist);
+                timeNow.push(dataset.timestamp);
+                var originData = dataset.datalist;
+                log('originData:', originData);
+                dat.push(originData[2]);
+            }
+            return [timeNow, dat]
+        };
+
+        chart.update = function (form, success, error) {
+            var url = '/update/system';
+            chart.post(url, form, success, error)
+        };
+
+        var dataDict = function (currentTime, datalist) {
+            var d = {
+                labels: currentTime,
+                datasets: [
+                    {
+                        label: "%system",
+                        data: datalist,
+                        backgroundColor: "rgba(151,187,205,0.2)",
+                        borderColor: "rgba(151,187,205,1)",
+                        pointBorderColor: "rgba(151,187,205,1)",
+                        pointBackgroundColor: "#fff",
+                        pointBorderWidth: 2,
+                    }
+                ]
+            };
+
+            var options = {
+                responsive: false,
+                scales: {
+                    xAxes: [{
+                        display: false
+                    }]
+                }
+            };
+
+            var chartNeeded = {
+                data: d,
+                options: options
+            };
+            return chartNeeded
+        };
+
+        var chart_init = function () {
+            var form = {};
+            var ctx = $('#cpuChart');
+            var success = function (r) {
+                var currentTime;
+                var datalist;
+                var d = chart.infoParse(r);
+                currentTime = d[0];
+                datalist = d[1];
+                log('test:', currentTime, datalist);
+                var chartNeeded = dataDict(currentTime, datalist);
+                myChart = Chart.Line(ctx, chartNeeded);
+            };
+            var error = function (err) {
+                log('reg, ', err);
+            };
+            chart.update(form, success, error)
+            };
+
+        var chart_update = function () {
+            var form = {};
+            var success = function (r) {
+                var currentTime;
+                var datalist;
+                var d = chart.infoParse(r);
+                currentTime = d[0];
+                datalist = d[1];
+                log('test:', currentTime, datalist);
+                myChart.data.labels = currentTime;
+                myChart.data.datasets[0].data = datalist;
+                myChart.update();
+            };
+            var error = function (err) {
+                log('reg, ', err);
+            };
+            chart.update(form, success, error)
+        };
+
+        var __main = function () {
+            setInterval(function () {
+                chart_update();
+            }, 1000);
+        };
+
+        $(document).ready(function () {
+            chart_init();
+            __main();
+        });
+
+    </script>
+
+</head>
+<body>
+
+  <h1>服务器信息</h1>
+  <canvas id="cpuChart" width="400" height="400"></canvas>
+
+</body>
+</html>
